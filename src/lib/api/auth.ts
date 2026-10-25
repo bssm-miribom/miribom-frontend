@@ -1,15 +1,16 @@
-import { request, setAccessToken } from './client';
+import { endSession, startSession } from '../session/session';
+import { request } from './client';
 import type { Account, LoginRequest, LoginResponse } from './types';
 
-// POST /auth/login. 성공하면 토큰을 저장해서 이후 관리자 API에 붙임
+// POST /auth/login. 성공하면 세션 저장 (앱: SecureStore, 웹: sessionStorage)
 export async function login(body: LoginRequest) {
   const res = await request<LoginResponse>('/auth/login', { method: 'POST', body });
-  setAccessToken(res.access_token);
-  return res;
+  await startSession(res);
+  return res.account;
 }
 
 export function logout() {
-  setAccessToken(null);
+  return endSession('manual');
 }
 
 export function getMe() {

@@ -3,15 +3,16 @@ const BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000').re
 
 export const API_URL = `${BASE_URL}/api`;
 
-let accessToken: string | null = null;
+type AuthHandlers = {
+  getToken: () => string | null;
+  onUnauthorized: () => void;
+};
 
-// 토큰은 메모리에만 둠. 새로고침 후 유지는 로그인 화면 만들 때 저장소 정해서 붙임
-export function setAccessToken(token: string | null) {
-  accessToken = token;
-}
+// 토큰 보관·만료는 lib/session이 맡음. 여기선 요청에 붙이고 401만 알려줌
+let authHandlers: AuthHandlers = { getToken: () => null, onUnauthorized: () => {} };
 
-export function getAccessToken() {
-  return accessToken;
+export function setAuthHandlers(handlers: AuthHandlers) {
+  authHandlers = handlers;
 }
 
 export class ApiError extends Error {
@@ -46,7 +47,11 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   const { method = 'GET', query, body, auth = false } = options;
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
-  if (auth && accessToken) headers.Authorization = `Bearer ${accessToken}`;
+  if (auth) {
+    const token = authHandlers.getToken();
+    if (!token) throw new ApiError(401, '로그인 필요');
+    headers.Authorization = `Bearer ${token}`;
+  }
 
   let res: Response;
   try {
@@ -65,7 +70,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
       const data = await res.json();
       if (typeof data?.detail === 'string') detail = data.detail;
     } catch {}
-    if (res.status === 401) setAccessToken(null);
+    if (res.status === 401 && auth) authHandlers.onUnauthorized();
     throw new ApiError(res.status, detail);
   }
 
