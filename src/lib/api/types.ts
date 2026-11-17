@@ -122,7 +122,6 @@ export type PlaceDetail = {
     limit_visitors: number | null;
     estimated: boolean;
   } | null;
-  weather_source: string;
 };
 
 export type AliasRequest = { alias: string; place_id: string };
