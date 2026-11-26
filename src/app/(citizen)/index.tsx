@@ -4,11 +4,14 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { CitizenFrame } from '@/components/citizen/CitizenFrame';
+import { ReplayBanner } from '@/components/citizen/ReplayBanner';
 import { LogoButton } from '@/components/LogoButton';
 import { AppText, CrowdBadge, Icon } from '@/components/ui';
 import { color, radius, type } from '@/constants/theme';
 import { searchPlaces, type PlaceSearchResult } from '@/lib/api';
+import { mmdd } from '@/lib/format';
 import { pushPref, usePref } from '@/lib/prefs';
+import { useReplayDay } from '@/lib/replayDay';
 import { useApi } from '@/lib/useApi';
 
 // C1 장소 검색 (시민 첫 화면, 로그인 없음)
@@ -17,6 +20,7 @@ export default function PlaceSearch() {
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
   const recent = usePref('recentSearches');
+  const replayDay = useReplayDay();
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(query.trim()), 250);
@@ -24,8 +28,8 @@ export default function PlaceSearch() {
   }, [query]);
 
   // 검색어가 비면 전체 장소(가나다순)를 '장소 둘러보기'로 보여줌
-  const all = useApi(() => searchPlaces(''), []);
-  const results = useApi(() => (debounced ? searchPlaces(debounced) : Promise.resolve(null)), [debounced]);
+  const all = useApi(() => searchPlaces('', replayDay), [replayDay]);
+  const results = useApi(() => (debounced ? searchPlaces(debounced, replayDay) : Promise.resolve(null)), [debounced, replayDay]);
 
   const open = (place: PlaceSearchResult) => {
     if (debounced) pushPref('recentSearches', debounced);
@@ -69,6 +73,7 @@ export default function PlaceSearch() {
             장소 이름이나 별칭으로 찾을 수 있어요
           </AppText>
         </View>
+        <ReplayBanner showEntry />
       </View>
 
       {debounced !== '' && (
@@ -117,13 +122,15 @@ export default function PlaceSearch() {
           <View style={styles.listHead}>
             <AppText variant="h3">장소 둘러보기</AppText>
             <AppText variant="caption" color={color.textSecondary}>
-              내일 기준
+              {all.data?.[0] && replayDay ? `${mmdd(all.data[0].tomorrow.date)} 기준` : '내일 기준'}
             </AppText>
           </View>
           {all.loading && <ActivityIndicator color={color.textLink} style={styles.loader} />}
           {all.error && (
             <AppText variant="bodySm" color={color.textSecondary} style={styles.listEmpty}>
-              장소를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.
+              {replayDay && all.error.status === 404
+                ? '이 날짜의 재현 결과가 아직 없어요. 관리자 화면의 과거 사례 재현에서 먼저 돌려 주세요.'
+                : '장소를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.'}
             </AppText>
           )}
           {all.data?.map((place) => (
@@ -147,6 +154,7 @@ export default function PlaceSearch() {
 }
 
 function ResultCard({ place, onPress }: { place: PlaceSearchResult; onPress: () => void }) {
+  const replayDay = useReplayDay();
   const sub = place.matched_alias
     ? `부산 ${place.district}, '${place.matched_alias}'로 검색됨`
     : `부산 ${place.district}`;
@@ -160,7 +168,7 @@ function ResultCard({ place, onPress }: { place: PlaceSearchResult; onPress: () 
           {sub}
         </AppText>
       </View>
-      <CrowdBadge crowd={place.tomorrow.crowd} label={`내일 ${place.tomorrow.label}`} />
+      <CrowdBadge crowd={place.tomorrow.crowd} label={`${replayDay ? mmdd(place.tomorrow.date) : '내일'} ${place.tomorrow.label}`} />
       <Icon name="chevronRight" size={18} />
     </Pressable>
   );

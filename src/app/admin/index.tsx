@@ -6,10 +6,11 @@ import { AliasModal } from '@/components/admin/AliasModal';
 import { Sparkline } from '@/components/admin/charts';
 import { AdminPage, ErrorView, firstOverDay, Loading } from '@/components/admin/common';
 import { AppText, Icon, NewBadge, StageBadge } from '@/components/ui';
-import { stageTone } from '@/constants/colors';
+import { crowdTone, stageTone } from '@/constants/colors';
 import { color, radius } from '@/constants/theme';
 import { getDashboard, getPlaceDetail, type Dashboard as DashboardData, type DashboardPlace, type JudgeQuery, type PlaceDetail } from '@/lib/api';
 import { addDays, density, judgeTime, mmdd, range, ratio } from '@/lib/format';
+import { DEMO_CASE } from '@/lib/replayDay';
 import { useSession } from '@/lib/session';
 import { useApi } from '@/lib/useApi';
 
@@ -54,6 +55,20 @@ export default function Dashboard() {
             </View>
           )}
           {canEdit && (
+            // 시연용: 오늘 판정이 모두 낮을 때 경보가 실제로 났던 날의 재현 결과로 전환 (재현 결과는 부산시만 볼 수 있음)
+            <Pressable
+              style={[styles.outlineBtn, query.replay && styles.replayOn]}
+              onPress={() =>
+                router.setParams(
+                  query.replay ? { judge_day: undefined, replay: undefined } : { judge_day: DEMO_CASE.day, replay: '1' },
+                )
+              }
+              accessibilityRole="button">
+              <Icon name="clock" size={18} />
+              <AppText variant="h3">{query.replay ? '오늘 판정으로' : `시연: ${DEMO_CASE.label} ${mmdd(DEMO_CASE.day)}`}</AppText>
+            </Pressable>
+          )}
+          {canEdit && (
             <Pressable style={styles.outlineBtn} onPress={() => setAliasOpen(true)} accessibilityRole="button">
               <Icon name="plus" size={18} />
               <AppText variant="h3">별칭 등록</AppText>
@@ -77,29 +92,30 @@ export default function Dashboard() {
   );
 }
 
-function summaryText({ summary, places }: DashboardData) {
+function summaryText({ summary, places, meta }: DashboardData) {
+  const when = meta.replay ? `${mmdd(meta.judge_day)} 재현 기준` : '오늘';
   const parts = [
     summary.stage3 && `3단계 ${summary.stage3}곳`,
     summary.stage2 && `2단계 ${summary.stage2}곳`,
     summary.stage1 && `1단계 ${summary.stage1}곳`,
     summary.pending && `판정 보류 ${summary.pending}곳`,
   ].filter(Boolean);
-  if (parts.length === 0) return '오늘 급상승 장소가 없습니다.';
+  if (parts.length === 0) return `${when} 급상승 장소가 없습니다.`;
   const fresh = places.filter((p) => p.is_new).length;
-  return `오늘 ${parts.join(', ')}입니다.${fresh ? ` 새로 잡힌 장소는 ${fresh}곳입니다.` : ''}`;
+  return `${when} ${parts.join(', ')}입니다.${fresh ? ` 새로 잡힌 장소는 ${fresh}곳입니다.` : ''}`;
 }
 
 function MetaNotice({ meta }: { meta: DashboardData['meta'] }) {
   const notes = [
-    meta.replay && `과거 사례 재현 결과입니다 (${mmdd(meta.judge_day)} 07:00까지 자료만 사용).`,
+    meta.replay && `과거 날짜 재현: ${meta.judge_day.replace(/-/g, '.')} 07:00까지 있던 실제 자료로 다시 돌린 결과입니다. 오늘 판정이 아닙니다.`,
     meta.stale && '07:00이 지났지만 오늘 판정이 아직 없습니다. 자료 수집이 늦어지고 있습니다.',
     meta.demo && '시연용 가짜 데이터로 만든 결과입니다.',
   ].filter(Boolean) as string[];
   if (!notes.length) return null;
   return (
-    <View style={styles.notice}>
+    <View style={[styles.notice, meta.replay && { backgroundColor: crowdTone.busy.bg }]}>
       {notes.map((n) => (
-        <AppText key={n} variant="bodySm" color={color.textSecondary}>
+        <AppText key={n} variant="bodySm" color={meta.replay ? crowdTone.busy.text : color.textSecondary}>
           {n}
         </AppText>
       ))}
@@ -262,6 +278,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: color.bgBrandSubtle,
   },
+  replayOn: { backgroundColor: crowdTone.busy.bg, borderColor: crowdTone.busy.fill },
   outlineBtn: {
     height: 40,
     flexDirection: 'row',
