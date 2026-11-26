@@ -10,7 +10,7 @@ import { crowdKey, crowdRank, crowdTone } from '@/constants/colors';
 import { color, radius } from '@/constants/theme';
 import { getPlaceForecast, type CrowdDay, type PlaceForecast } from '@/lib/api';
 import { mmdd, relativeDay, stamp, weekday } from '@/lib/format';
-import { useReplayDay } from '@/lib/replayDay';
+import { useView } from '@/lib/replayDay';
 import { shareLink } from '@/lib/share';
 import { useApi } from '@/lib/useApi';
 
@@ -18,8 +18,9 @@ import { useApi } from '@/lib/useApi';
 export default function PlaceCrowd() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const replayDay = useReplayDay();
-  const { data, error, loading, reload } = useApi(() => getPlaceForecast(id, replayDay), [id, replayDay]);
+  const view = useView();
+  const special = !!(view.replay_day || view.scenario); // 시연용 보기 중
+  const { data, error, loading, reload } = useApi(() => getPlaceForecast(id, view), [id, view.replay_day, view.scenario]);
   const [toast, setToast] = useState<string | null>(null);
 
   const onShare = async () => {
@@ -53,9 +54,9 @@ export default function PlaceCrowd() {
           </AppText>
         </View>
       )}
-      {replayDay && (
+      {special && (
         <View style={styles.replay}>
-          <ReplayBanner />
+          <ReplayBanner scenario={data?.meta.scenario} />
         </View>
       )}
       {loading && <ActivityIndicator color={color.textLink} style={styles.loader} />}
@@ -63,8 +64,8 @@ export default function PlaceCrowd() {
         <View style={styles.pad}>
           <AppText variant="body" color={color.textSecondary}>
             {error.status === 404
-              ? replayDay
-                ? '이 날짜의 재현 결과가 없어요.'
+              ? special
+                ? '이 시연 결과가 서버에 없어요.'
                 : '장소를 찾을 수 없어요.'
               : '예보를 불러오지 못했어요.'}
           </AppText>
