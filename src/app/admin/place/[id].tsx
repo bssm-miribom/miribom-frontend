@@ -34,9 +34,13 @@ const MISSING_LABEL: Record<string, string> = {
 // A3 장소 상세 (추이 그래프, 판정 근거)
 export default function AdminPlaceDetail() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ id: string; judge_day?: string; replay?: string }>();
-  const query: JudgeQuery = { judge_day: params.judge_day, replay: params.replay === '1' ? true : undefined };
-  const { data, error, loading, reload } = useApi(() => getPlaceDetail(params.id, query), [params.id, params.judge_day, params.replay]);
+  const params = useLocalSearchParams<{ id: string; judge_day?: string; replay?: string; scenario?: string }>();
+  const query: JudgeQuery = {
+    judge_day: params.judge_day,
+    replay: params.replay === '1' ? true : undefined,
+    scenario: params.scenario,
+  };
+  const { data, error, loading, reload } = useApi(() => getPlaceDetail(params.id, query), [params.id, params.judge_day, params.replay, params.scenario]);
 
   const back = () => (router.canGoBack() ? router.back() : router.replace('/admin'));
 
@@ -50,10 +54,16 @@ export default function AdminPlaceDetail() {
           </AppText>
         </Pressable>
         {data && <StageBadge stage={data.stage} label={`${stageName[data.stage]}, ${judgeTime(data.meta.judge_day)} 판정`} />}
-        {data?.meta.replay && (
-          <AppText variant="caption" color={color.textSecondary}>
-            과거 사례 재현 결과
+        {data?.meta.scenario ? (
+          <AppText variant="caption" color="#A93320">
+            {data.meta.scenario.label}. 가정: {data.meta.scenario.assumption}
           </AppText>
+        ) : (
+          data?.meta.replay && (
+            <AppText variant="caption" color={color.textSecondary}>
+              과거 사례 재현 결과
+            </AppText>
+          )
         )}
       </View>
       {loading && <Loading />}
@@ -115,16 +125,19 @@ function Detail({ detail, query }: { detail: PlaceDetail; query: JudgeQuery }) {
 /** 판정 이력: 최근 3번의 07:00 판정 단계 */
 function History({ detail, query }: { detail: PlaceDetail; query: JudgeQuery }) {
   const day = detail.meta.judge_day;
+  // 가상 시나리오는 하루치만 있어서 이전 판정을 안 붙임 (실데이터와 섞지 않음)
   const prev = useApi(
     () =>
-      Promise.all(
+      query.scenario
+        ? Promise.resolve([null, null, null])
+        : Promise.all(
         [1, 2, 3].map((n) =>
           getPlaceDetail(detail.place.id, { ...query, judge_day: addDays(day, -n) })
             .then((d) => d.stage)
             .catch(() => null),
         ),
       ),
-    [detail.place.id, day, query.replay],
+    [detail.place.id, day, query.replay, query.scenario],
   );
   const stages: (Stage | null)[] = [detail.stage, ...(prev.data ?? [null, null, null])];
   const items = stages.slice(0, 3).map((stage, i) => ({ date: addDays(day, -i), stage, before: stages[i + 1] }));

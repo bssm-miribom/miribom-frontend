@@ -32,6 +32,25 @@ export type JudgeMeta = {
   demo: boolean;
   replay: boolean;
   stale: boolean;
+  /** 가상 시나리오면 라벨·가정 (실제 데이터 아님). 아니면 null */
+  scenario?: ScenarioInfo | null;
+};
+
+export type ScenarioInfo = {
+  key: string;
+  label: string;
+  place_id: string;
+  place: string;
+  multiplier: number;
+  start: DateString;
+  assumption: string;
+};
+
+export type ScenarioRequest = {
+  judge_day?: DateString;
+  place_id?: string;
+  multiplier?: number;
+  force?: boolean;
 };
 
 // 1. 상태
@@ -103,6 +122,8 @@ export type Dashboard = {
 export type JudgeQuery = {
   judge_day?: DateString;
   replay?: boolean;
+  /** 가상 시나리오 키 (실제 데이터 아님) */
+  scenario?: string;
 };
 
 export type Place = {

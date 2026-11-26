@@ -10,6 +10,7 @@ import type {
   PlaceDetail,
   PlaceWithAliases,
   ReplayRequest,
+  ScenarioRequest,
 } from './types';
 
 // A2 대시보드. 기본은 최근 운영 판정, judge_day·replay로 재현 결과 조회
@@ -43,6 +44,11 @@ export function deleteAlias(id: number) {
 // A4 과거 사례 재현 (부산시만). 몇십 초 걸릴 수 있음
 export function runReplay(body: ReplayRequest) {
   return request<Dashboard>('/admin/replay', { method: 'POST', auth: true, body });
+}
+
+// 가상 시나리오 (부산시만, 실제 데이터 아님). 기본값: 2026-09-21 북항 검색 1배 + '검색 증가 = 방문 증가' 가정
+export function runScenario(body: ScenarioRequest = {}) {
+  return request<Dashboard>('/admin/scenario', { method: 'POST', auth: true, body });
 }
 
 // 오늘 판정 바로 실행 (부산시만)

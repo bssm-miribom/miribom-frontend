@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 // 최근 검색·즐겨찾기 장소처럼 기기에만 두는 작은 목록. 웹은 localStorage, 앱은 메모리 (앱 재시작 시 비움)
 
 // replayDay: 시연용 과거 날짜 보기 (값 0~1개, 비면 오늘 예보)
-type Key = 'recentSearches' | 'favoritePlaces' | 'replayDay';
+type Key = 'recentSearches' | 'favoritePlaces' | 'replayDay' | 'scenarioKey';
 
 const memory = new Map<Key, string[]>();
 const listeners = new Set<() => void>();

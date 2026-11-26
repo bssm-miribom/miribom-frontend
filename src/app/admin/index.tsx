@@ -8,7 +8,7 @@ import { AdminPage, ErrorView, firstOverDay, Loading } from '@/components/admin/
 import { AppText, Icon, NewBadge, StageBadge } from '@/components/ui';
 import { crowdTone, stageTone } from '@/constants/colors';
 import { color, radius } from '@/constants/theme';
-import { getDashboard, getPlaceDetail, type Dashboard as DashboardData, type DashboardPlace, type JudgeQuery, type PlaceDetail } from '@/lib/api';
+import { getDashboard, getPlaceDetail, runScenario, type Dashboard as DashboardData, type DashboardPlace, type JudgeQuery, type PlaceDetail } from '@/lib/api';
 import { addDays, density, judgeTime, mmdd, range, ratio } from '@/lib/format';
 import { DEMO_CASE } from '@/lib/replayDay';
 import { useSession } from '@/lib/session';
@@ -20,11 +20,27 @@ const PREVIEW_ROWS = 7;
 // A2 경보 대시보드 메인 (요약 줄, 우선 대응 목록, 별칭 등록)
 export default function Dashboard() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ judge_day?: string; replay?: string; alias?: string }>();
-  const query: JudgeQuery = { judge_day: params.judge_day, replay: params.replay === '1' ? true : undefined };
+  const params = useLocalSearchParams<{ judge_day?: string; replay?: string; scenario?: string; alias?: string }>();
+  const query: JudgeQuery = {
+    judge_day: params.judge_day,
+    replay: params.replay === '1' ? true : undefined,
+    scenario: params.scenario,
+  };
   const session = useSession();
   const canEdit = !!session?.account.can_edit;
-  const { data, error, loading, reload } = useApi(() => getDashboard(query), [params.judge_day, params.replay]);
+  const { data, error, loading, reload } = useApi(() => getDashboard(query), [params.judge_day, params.replay, params.scenario]);
+  const [scenarioBusy, setScenarioBusy] = useState(false);
+  const special = !!(query.replay || query.scenario);
+  // 가상 시나리오(실제 데이터 아님): 서버에서 만들고(같은 조건은 저장된 결과) 그 키로 대시보드를 봄
+  const openScenario = async () => {
+    setScenarioBusy(true);
+    try {
+      const d = await runScenario();
+      router.setParams({ scenario: d.meta.scenario?.key, judge_day: undefined, replay: undefined });
+    } finally {
+      setScenarioBusy(false);
+    }
+  };
   // 사이드바 '별칭 등록'은 ?alias=1로 들어옴
   const [aliasOpen, setAliasOpen] = useState(false);
   const showAlias = canEdit && (aliasOpen || params.alias === '1');
@@ -57,15 +73,23 @@ export default function Dashboard() {
           {canEdit && (
             // 시연용: 오늘 판정이 모두 낮을 때 경보가 실제로 났던 날의 재현 결과로 전환 (재현 결과는 부산시만 볼 수 있음)
             <Pressable
-              style={[styles.outlineBtn, query.replay && styles.replayOn]}
+              style={[styles.outlineBtn, special && styles.replayOn]}
               onPress={() =>
                 router.setParams(
-                  query.replay ? { judge_day: undefined, replay: undefined } : { judge_day: DEMO_CASE.day, replay: '1' },
+                  special
+                    ? { judge_day: undefined, replay: undefined, scenario: undefined }
+                    : { judge_day: DEMO_CASE.day, replay: '1' },
                 )
               }
               accessibilityRole="button">
               <Icon name="clock" size={18} />
-              <AppText variant="h3">{query.replay ? '오늘 판정으로' : `시연: ${DEMO_CASE.label} ${mmdd(DEMO_CASE.day)}`}</AppText>
+              <AppText variant="h3">{special ? '오늘 판정으로' : `시연: ${DEMO_CASE.label} ${mmdd(DEMO_CASE.day)}`}</AppText>
+            </Pressable>
+          )}
+          {canEdit && !special && (
+            <Pressable style={[styles.outlineBtn, scenarioBusy && styles.disabled]} disabled={scenarioBusy} onPress={openScenario} accessibilityRole="button">
+              <Icon name="infoBusy" size={18} />
+              <AppText variant="h3">{scenarioBusy ? '가상 시나리오 만드는 중…' : '가상 시나리오 (실제 데이터 아님)'}</AppText>
             </Pressable>
           )}
           {canEdit && (
@@ -93,7 +117,7 @@ export default function Dashboard() {
 }
 
 function summaryText({ summary, places, meta }: DashboardData) {
-  const when = meta.replay ? `${mmdd(meta.judge_day)} 재현 기준` : '오늘';
+  const when = meta.scenario ? '가상 시나리오 기준' : meta.replay ? `${mmdd(meta.judge_day)} 재현 기준` : '오늘';
   const parts = [
     summary.stage3 && `3단계 ${summary.stage3}곳`,
     summary.stage2 && `2단계 ${summary.stage2}곳`,
@@ -106,6 +130,19 @@ function summaryText({ summary, places, meta }: DashboardData) {
 }
 
 function MetaNotice({ meta }: { meta: DashboardData['meta'] }) {
+  if (meta.scenario) {
+    const sc = meta.scenario;
+    return (
+      <View style={[styles.notice, { backgroundColor: crowdTone.very_busy.bg }]}>
+        <AppText variant="h3" color={crowdTone.very_busy.text}>
+          {sc.label}
+        </AppText>
+        <AppText variant="bodySm" color={crowdTone.very_busy.text}>
+          {`${mmdd(meta.judge_day)} 07:00 판정에 ${sc.place} 검색량을 ${mmdd(sc.start)}부터 ${sc.multiplier}배로 키워 넣은 결과입니다. 가정: ${sc.assumption}`}
+        </AppText>
+      </View>
+    );
+  }
   const notes = [
     meta.replay && `과거 날짜 재현: ${meta.judge_day.replace(/-/g, '.')} 07:00까지 있던 실제 자료로 다시 돌린 결과입니다. 오늘 판정이 아닙니다.`,
     meta.stale && '07:00이 지났지만 오늘 판정이 아직 없습니다. 자료 수집이 늦어지고 있습니다.',
@@ -169,7 +206,12 @@ function PriorityTable({ data, query }: { data: DashboardData; query: JudgeQuery
           onPress={() =>
             router.push({
               pathname: '/admin/place/[id]',
-              params: { id: place.id, ...(query.judge_day && { judge_day: query.judge_day }), ...(query.replay && { replay: '1' }) },
+              params: {
+                id: place.id,
+                ...(query.judge_day && { judge_day: query.judge_day }),
+                ...(query.replay && { replay: '1' }),
+                ...(query.scenario && { scenario: query.scenario }),
+              },
             })
           }
         />
@@ -260,7 +302,7 @@ function useDetails(ids: string[], query: JudgeQuery) {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, query.judge_day, query.replay]);
+  }, [key, query.judge_day, query.replay, query.scenario]);
 
   return map;
 }
@@ -278,6 +320,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: color.bgBrandSubtle,
   },
+  disabled: { opacity: 0.6 },
   replayOn: { backgroundColor: crowdTone.busy.bg, borderColor: crowdTone.busy.fill },
   outlineBtn: {
     height: 40,
