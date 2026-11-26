@@ -208,7 +208,7 @@ function BrandPanel({ onCitizen }: { onCitizen: () => void }) {
         </AppText>
         <AppText variant="display">{'사람이 몰리기 전,\n온라인 관심을 먼저 봅니다.'}</AppText>
         <AppText variant="body" color={color.textSecondary}>
-          {'검색량·블로그·뉴스의 급증을 매일 07:00에 판정해\n안전 인력과 교통을 미리 준비할 수 있게 돕습니다.'}
+          {'네이버 검색량 급증을 매일 07:00에 판정해\n안전 인력과 교통을 미리 준비할 수 있게 돕습니다.'}
         </AppText>
       </View>
 

@@ -153,7 +153,7 @@ function Forecast({ data }: { data: PlaceForecast }) {
         <View style={styles.disclaimer}>
           <Icon name="info" size={16} />
           <AppText variant="caption" color={color.textSecondary} style={styles.flex}>
-            검색량, 블로그, 뉴스 같은 온라인 관심도로 예측한 추정치예요. 실제 현장과 다를 수 있어요. 매일 07시에 새로 나와요.
+            네이버 검색량 같은 온라인 관심도로 예측한 추정치예요. 실제 현장과 다를 수 있어요. 매일 07시에 새로 나와요.
           </AppText>
         </View>
       </View>
