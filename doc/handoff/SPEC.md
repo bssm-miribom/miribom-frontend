@@ -49,6 +49,8 @@ src/
 ```
 
 ## 4. 디자인 규칙 (요약, 자세한 건 `doc/md/design.md`)
+> ⚠️ `design.md`와 Figma가 다른 곳은 **Figma가 기준**. 글꼴(design.md: Pretendard + 숫자 IBM Plex Mono → Figma: 제목 Paperlogy, 본문·숫자 Pretendard)과 모서리(design.md: 2px → Figma: 8·12·16px)가 다름. 코드는 Figma대로 되어 있음. 말투·금지어·색 의미는 design.md를 따름
+
 - 색·글자는 **`constants/theme.ts` 토큰만** 씀. 화면에 hex 직접 쓰지 않기 (경보 단계 색은 `colors.ts`)
 - 글자는 `<AppText variant="h1|h2|h3|body|bodySm|caption|label|metric|metricLg">`
 - 경보 단계는 색만으로 구분하지 않고 항상 글자를 같이 씀 (`StageBadge`)
@@ -98,7 +100,7 @@ src/
 - API: `GET /admin/places/{id}`, 판정 이력용으로 1~3일 전 같은 API, `GET /admin/checklists`, `PATCH /admin/checklists/{id}/items/{item}`
 - 추이 그래프: 검색 급증 배수(우축 선), 실측 방문객(막대), 예측 중앙값(점선)·범위(영역), 병목 기준선, 판정 시점
 - 판정 이력: 최근 3번 판정의 단계 변화(상향·유지·하향)
-- 대응 권고: 서버 점검표. 부산시가 대응 수준을 정하기 전엔 "점검표가 만들어집니다" 안내. 관할 기관만 체크 가능(403이면 안내)
+- 대응 권고: 서버 점검표. 부산시가 대응 수준을 정해야(`PUT /admin/places/{id}/response`) 점검표가 생기고, 그 전엔 "점검표가 만들어집니다" 안내. 체크는 관할 기관·부산시만 가능하고, 볼 수 없는 장소면 서버가 404를 줌
 - 판정 근거: 내일 병목 밀집도, 기준 초과 예상일, `reason` 문장, 검색 지수·방문 의도 글·날씨 자료·병목 지점
 - ⚠️ **'협력기관에 공유' 버튼** → 지금은 **링크 복사만**. 실제 조치 요청 API(`PUT /admin/places/{id}/response`의 `request_to`)는 연결 안 함
 

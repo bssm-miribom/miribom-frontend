@@ -172,7 +172,8 @@ function Recommendations({ detail }: { detail: PlaceDetail }) {
       await setChecklistItem(list.id, itemId, done);
       reload();
     } catch (e) {
-      setFailed(e instanceof ApiError && e.status === 403 ? '관할 기관만 체크할 수 있습니다.' : '저장하지 못했습니다.');
+      // 볼 수 없는 장소면 서버가 404, 권한 없으면 403
+      setFailed(e instanceof ApiError && (e.status === 403 || e.status === 404) ? '관할 기관과 부산시만 체크할 수 있습니다.' : '저장하지 못했습니다.');
     }
   };
 
