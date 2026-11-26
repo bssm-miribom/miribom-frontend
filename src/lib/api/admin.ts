@@ -2,6 +2,7 @@ import { request } from './client';
 import type {
   Alias,
   AliasRequest,
+  Checklist,
   Dashboard,
   JudgeQuery,
   Notice,
@@ -56,4 +57,16 @@ export function createNotice(body: NoticeRequest) {
 
 export function deleteNotice(id: number) {
   return request<void>(`/admin/notices/${id}`, { method: 'DELETE', auth: true });
+}
+
+// 대응 점검표 (v0.3). 관할 기관만 체크 가능
+export function getChecklists(query: { place_id?: string; judge_day?: string } = {}) {
+  return request<Checklist[]>('/admin/checklists', { auth: true, query });
+}
+
+export function setChecklistItem(checklistId: number, itemId: string, done: boolean) {
+  return request<Checklist>(
+    `/admin/checklists/${checklistId}/items/${encodeURIComponent(itemId)}`,
+    { method: 'PATCH', auth: true, body: { done } },
+  );
 }

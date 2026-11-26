@@ -1,4 +1,4 @@
-// 백엔드 API 명세서 v0.2 (miribom-backend/docs/API.md) 기준 타입. 필드는 서버 그대로 snake_case
+// 백엔드 API 명세서 v0.3 (miribom-backend/docs/API.md) 기준 타입. 필드는 서버 그대로 snake_case
 
 /** YYYY-MM-DD */
 export type DateString = string;
@@ -21,6 +21,9 @@ export type Forecast = {
   /** 판정 보류 장소는 null */
   density_mid: number | null;
   density_high: number | null;
+  /** 최악 시나리오 (참고용, v0.3) */
+  worst?: number;
+  density_worst?: number | null;
 };
 
 export type JudgeMeta = {
@@ -76,13 +79,19 @@ export type DashboardPlace = {
   lon: number;
   stage: Exclude<Stage, 'normal'>;
   surge_ratio: number;
-  /** 방문 의도 분류 전이라 지금은 null */
+  /** 어제 가볼래 글 수. 분류 결과 없으면 null */
   intent_posts: number | null;
+  /** 평소(28일 중앙값) 대비 배수 (v0.3) */
+  intent_ratio?: number | null;
   d1: Forecast | null;
   bottleneck_name: string | null;
   is_new: boolean;
   new_alias: string | null;
   reason: string;
+  worst_case?: string | null;
+  /** 판정 보류일 때 빠진 값 (v0.3) */
+  missing?: string[];
+  response_level?: string | null;
 };
 
 export type Dashboard = {
@@ -109,10 +118,15 @@ export type PlaceDetail = {
   place: PlaceWithAliases;
   stage: Stage;
   reason: string;
+  worst_case?: string | null;
+  missing?: string[];
   surge: { ratio: number; top1pct: number; year_max: number; reason: string };
-  trend: { date: DateString; surge_ratio: number }[];
-  /** 장소별 실측 자료가 없어서 지금은 빈 배열. 형식은 미정 */
-  actual_visitors: { date: DateString; visitors: number }[];
+  /** v0.3 */
+  intent?: { posts: number | null; ratio: number | null; model: string | null } | null;
+  /** 최근 7일. 날짜는 자료 기준일(D-1) */
+  trend: { date: DateString; surge_ratio: number; intent_posts?: number | null }[];
+  /** 협력기관 실측 회신 (판정일 전날까지) */
+  actual_visitors: { date: DateString; visitors: number; source?: string }[];
   forecasts: Forecast[];
   bottleneck: {
     name: string;
@@ -123,6 +137,25 @@ export type PlaceDetail = {
     estimated: boolean;
   } | null;
   weather_source: string;
+  checklist?: { id: number; done: number; total: number } | null;
+};
+
+// 대응 점검표 (v0.3, 5장)
+
+export type ChecklistItem = {
+  id: string;
+  label: string;
+  done: boolean;
+  by: string | null;
+  at: DateTimeString | null;
+};
+
+export type Checklist = {
+  id: number;
+  place_id: string;
+  judge_day: DateString;
+  level: string;
+  items: ChecklistItem[];
 };
 
 export type AliasRequest = { alias: string; place_id: string };
